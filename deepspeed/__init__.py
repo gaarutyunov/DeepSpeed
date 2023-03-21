@@ -62,7 +62,7 @@ def initialize(args=None,
                collate_fn=None,
                config=None,
                config_params=None,
-               multiprocessing_context=None):
+               training_data_params=None):
     """Initialize the DeepSpeed Engine.
 
     Arguments:
@@ -97,7 +97,7 @@ def initialize(args=None,
 
         config_params: Optional: Same as `config`, kept for backwards compatibility.
 
-        multiprocessing_context: Optional: Multiprocessing context for dataloader
+        training_data_params: Optional: Params for :meth:`~deepspeed.runtime.engine.DeepSpeedEngine.deepspeed_io`
 
     Returns:
         A tuple of ``engine``, ``optimizer``, ``training_dataloader``, ``lr_scheduler``
@@ -136,7 +136,7 @@ def initialize(args=None,
                                  collate_fn=collate_fn,
                                  config=config,
                                  config_params=config_params,
-                                 multiprocessing_context=multiprocessing_context)
+                                 training_data_params=training_data_params)
     else:
         assert mpu is None, "mpu must be None with pipeline parallelism"
         engine = PipelineEngine(args=args,
@@ -150,7 +150,7 @@ def initialize(args=None,
                                 collate_fn=collate_fn,
                                 config=config,
                                 config_params=config_params,
-                                multiprocessing_context=multiprocessing_context)
+                                training_data_params=training_data_params)
 
     return_items = [
         engine,

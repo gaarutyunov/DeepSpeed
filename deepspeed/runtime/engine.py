@@ -202,7 +202,7 @@ class DeepSpeedEngine(Module):
         config=None,
         config_params=None,
         dont_change_device=False,
-        multiprocessing_context=None
+        training_data_params=None
     ):
         super(DeepSpeedEngine, self).__init__()
         self.dont_change_device = dont_change_device
@@ -233,7 +233,6 @@ class DeepSpeedEngine(Module):
         self.moe_layers = []
         self._step_applied = False
         self._global_grad_norm = None
-        self.multiprocessing_context = multiprocessing_context
         self.use_ds_comm = False  # False --> Use torch.dist, True --> Use ds.comm backend.
 
         self.checkpoint_engine = None
@@ -318,7 +317,10 @@ class DeepSpeedEngine(Module):
             self.flops_profiler = FlopsProfiler(self.module, self)
 
         if training_data:
-            self.training_dataloader = self.deepspeed_io(training_data, multiprocessing_context=multiprocessing_context)
+            if training_data_params is None:
+                self.training_dataloader = self.deepspeed_io(training_data)
+            else:
+                self.training_dataloader = self.deepspeed_io(training_data, **training_data_params)
         else:
             self.training_dataloader = None
 
