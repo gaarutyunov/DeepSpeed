@@ -202,6 +202,7 @@ class DeepSpeedEngine(Module):
         config=None,
         config_params=None,
         dont_change_device=False,
+        multiprocessing_context=None
     ):
         super(DeepSpeedEngine, self).__init__()
         self.dont_change_device = dont_change_device
@@ -232,6 +233,7 @@ class DeepSpeedEngine(Module):
         self.moe_layers = []
         self._step_applied = False
         self._global_grad_norm = None
+        self.multiprocessing_context = multiprocessing_context
         self.use_ds_comm = False  # False --> Use torch.dist, True --> Use ds.comm backend.
 
         self.checkpoint_engine = None
@@ -316,7 +318,7 @@ class DeepSpeedEngine(Module):
             self.flops_profiler = FlopsProfiler(self.module, self)
 
         if training_data:
-            self.training_dataloader = self.deepspeed_io(training_data)
+            self.training_dataloader = self.deepspeed_io(training_data, multiprocessing_context=multiprocessing_context)
         else:
             self.training_dataloader = None
 
@@ -1682,7 +1684,8 @@ class DeepSpeedEngine(Module):
                      pin_memory=True,
                      data_sampler=None,
                      collate_fn=None,
-                     num_local_io_workers=None):
+                     num_local_io_workers=None,
+                     multiprocessing_context=None):
         if not (self.is_map_style_dataset(dataset)
                 or self.is_iterable_style_dataset(dataset)):
             raise ValueError("Training data must be a torch Dataset")
@@ -1742,7 +1745,9 @@ class DeepSpeedEngine(Module):
             data_parallel_world_size=data_parallel_world_size,
             data_parallel_rank=data_parallel_rank,
             dataloader_drop_last=self.dataloader_drop_last(),
-            deepspeed_dataloader_config=deepspeed_dataloader_config)
+            deepspeed_dataloader_config=deepspeed_dataloader_config,
+            multiprocessing_context=multiprocessing_context
+        )
 
     def train(self, mode=True):
         r""""""

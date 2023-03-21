@@ -49,7 +49,8 @@ class DeepSpeedDataLoader(object):
                  data_parallel_world_size=None,
                  data_parallel_rank=None,
                  dataloader_drop_last=False,
-                 deepspeed_dataloader_config={}):
+                 deepspeed_dataloader_config={},
+                 multiprocessing_context=None):
         self.deepspeed_dataloader_config = deepspeed_dataloader_config
         self.tput_timer = tput_timer
         self.batch_size = batch_size
@@ -99,6 +100,7 @@ class DeepSpeedDataLoader(object):
         self.data = None
         self.dataloader_drop_last = dataloader_drop_last
         self.post_process_func = None
+        self.multiprocessing_context = multiprocessing_context
 
         if self.dataloader_drop_last:
             self.len = len(self.data_sampler) // self.batch_size
@@ -130,13 +132,15 @@ class DeepSpeedDataLoader(object):
                 self.dataloader = DataLoader(self.dataset,
                                              pin_memory=self.pin_memory,
                                              batch_sampler=self.data_sampler,
-                                             num_workers=self.num_local_io_workers)
+                                             num_workers=self.num_local_io_workers,
+                                             multiprocessing_context=self.multiprocessing_context)
             else:
                 self.dataloader = DataLoader(self.dataset,
                                              pin_memory=self.pin_memory,
                                              batch_sampler=self.data_sampler,
                                              collate_fn=self.collate_fn,
-                                             num_workers=self.num_local_io_workers)
+                                             num_workers=self.num_local_io_workers,
+                                             multiprocessing_context=self.multiprocessing_context)
             self.data_iterator = iter(self.dataloader)
             return self.dataloader
         else:
@@ -146,7 +150,8 @@ class DeepSpeedDataLoader(object):
                                              pin_memory=self.pin_memory,
                                              sampler=self.data_sampler,
                                              num_workers=self.num_local_io_workers,
-                                             drop_last=self.dataloader_drop_last)
+                                             drop_last=self.dataloader_drop_last,
+                                             multiprocessing_context=self.multiprocessing_context)
             else:
                 self.dataloader = DataLoader(self.dataset,
                                              batch_size=self.batch_size,
@@ -154,7 +159,8 @@ class DeepSpeedDataLoader(object):
                                              sampler=self.data_sampler,
                                              collate_fn=self.collate_fn,
                                              num_workers=self.num_local_io_workers,
-                                             drop_last=self.dataloader_drop_last)
+                                             drop_last=self.dataloader_drop_last,
+                                             multiprocessing_context=self.multiprocessing_context)
             self.data = (x for x in self.dataloader)
 
             return self.dataloader
