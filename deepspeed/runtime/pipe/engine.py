@@ -1,5 +1,5 @@
 # Copyright 2019 The Microsoft DeepSpeed Team
-
+import typing
 from types import MethodType
 
 import torch
@@ -795,7 +795,9 @@ class PipelineEngine(DeepSpeedEngine):
                 loaded = batch[0].clone().to(self.device).detach()
                 loaded.requires_grad = loaded.is_floating_point()
             else:
-                assert isinstance(batch[0], tuple), f"Expected tuple, actual {batch[0]}"
+                assert isinstance(
+                    batch[0], (typing.Sequence, typing.Iterable)
+                ), f"Expected batch[0] to be iterable, actual {type(batch[0])}"
                 # Assume list or tuple
                 loaded = []
                 for x in batch[0]:
