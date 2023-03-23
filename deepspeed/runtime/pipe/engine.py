@@ -56,7 +56,11 @@ class PipelineEngine(DeepSpeedEngine):
     ]
     DTYPE_TO_ID = {dtype: id_ for id_, dtype in enumerate(ID_TO_DTYPE)}
 
-    def __init__(self, has_bool_tensors=False, *super_args, **super_kwargs):
+    def __init__(self,
+                 has_bool_tensors=False,
+                 requires_grad_special_cases: typing.Optional[typing.Dict[int, bool]] = None,
+                 *super_args,
+                 **super_kwargs):
         super().__init__(*super_args, **super_kwargs)
         assert isinstance(self.module, PipelineModule), "model must base PipelineModule"
 
@@ -67,6 +71,7 @@ class PipelineEngine(DeepSpeedEngine):
         self.has_bool_tensors = has_bool_tensors
         self.eval_return_logits = False
         self.outputs = None
+        self.requires_grad_special_cases = requires_grad_special_cases
 
         # used to disable the pipeline all-reduce when used with 1-bit Adam/1-bit LAMB
         self.pipeline_enable_backward_allreduce = True
@@ -800,10 +805,13 @@ class PipelineEngine(DeepSpeedEngine):
                 ), f"Expected batch[0] to be iterable, actual {type(batch[0])}"
                 # Assume list or tuple
                 loaded = []
-                for x in batch[0]:
+                for idx, x in enumerate(batch[0]):
                     assert torch.is_tensor(x)
                     mine = x.clone().detach().to(self.device)
-                    mine.requires_grad = mine.is_floating_point()
+                    if self.requires_grad_special_cases is not None and idx in self.requires_grad_special_cases:
+                        mine.requires_grad = mine.is_floating_point() and self.requires_grad_special_cases[idx]
+                    else:
+                        mine.requires_grad = mine.is_floating_point()
                     loaded.append(mine)
                 loaded = tuple(loaded)
 
