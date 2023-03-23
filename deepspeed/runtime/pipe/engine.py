@@ -58,7 +58,7 @@ class PipelineEngine(DeepSpeedEngine):
 
     def __init__(self,
                  has_bool_tensors=False,
-                 requires_grad_special_cases: typing.Optional[typing.Dict[int, bool]] = None,
+                 requires_grad_special_cases: typing.Optional[typing.Dict[str, bool]] = None,
                  *super_args,
                  **super_kwargs):
         super().__init__(*super_args, **super_kwargs)
@@ -808,8 +808,8 @@ class PipelineEngine(DeepSpeedEngine):
                 for idx, x in enumerate(batch[0]):
                     assert torch.is_tensor(x)
                     mine = x.clone().detach().to(self.device)
-                    if self.requires_grad_special_cases is not None and idx in self.requires_grad_special_cases:
-                        mine.requires_grad = mine.is_floating_point() and self.requires_grad_special_cases[idx]
+                    if self.requires_grad_special_cases is not None and str(idx) in self.requires_grad_special_cases:
+                        mine.requires_grad = mine.is_floating_point() and self.requires_grad_special_cases[str(idx)]
                     else:
                         mine.requires_grad = mine.is_floating_point()
                     loaded.append(mine)
@@ -1091,8 +1091,11 @@ class PipelineEngine(DeepSpeedEngine):
 
             recvd = tuple(recvd)
 
-            for buffer in recvd:
-                buffer.requires_grad = buffer.is_floating_point()
+            for idx, buffer in enumerate(recvd):
+                if self.requires_grad_special_cases is not None and str(idx) in self.requires_grad_special_cases:
+                    buffer.requires_grad = buffer.is_floating_point() and self.requires_grad_special_cases[str(idx)]
+                else:
+                    buffer.requires_grad = buffer.is_floating_point()
 
         self.pipe_buffers['inputs'][buffer_id] = recvd
 
