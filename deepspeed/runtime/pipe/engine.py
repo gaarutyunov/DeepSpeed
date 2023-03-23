@@ -1039,7 +1039,13 @@ class PipelineEngine(DeepSpeedEngine):
                     if not buffer.is_floating_point():
                         assert buffer.grad is None
                         continue
-                    assert buffer.grad is not None, f"buffer {idx} has no gradient {buffer}\n for inputs:\n {inputs}"
+                    try:
+                        assert buffer.grad is not None, f"buffer {idx} has no gradient {buffer}\n for inputs:\n {inputs}"
+                    except Exception as e:
+                        fmt = "Buffers' gradients:\n"
+                        for idx_, buffer_ in enumerate(inputs):
+                            fmt += f"- {idx_}: {buffer_.grad is not None} (type: {buffer_.dtype})\n"
+                        raise Exception(fmt) from e
                     p2p.send(buffer.grad, self.prev_stage)
 
         # We can free up the input buffer now
