@@ -62,7 +62,8 @@ def initialize(args=None,
                collate_fn=None,
                config=None,
                config_params=None,
-               training_data_params=None):
+               training_data_params=None,
+               requires_grad_special_cases=None):
     """Initialize the DeepSpeed Engine.
 
     Arguments:
@@ -98,6 +99,8 @@ def initialize(args=None,
         config_params: Optional: Same as `config`, kept for backwards compatibility.
 
         training_data_params: Optional: Params for :meth:`~deepspeed.runtime.engine.DeepSpeedEngine.deepspeed_io`
+
+        requires_grad_special_cases: Optional: Special cases for gradients
 
     Returns:
         A tuple of ``engine``, ``optimizer``, ``training_dataloader``, ``lr_scheduler``
@@ -150,7 +153,8 @@ def initialize(args=None,
                                 collate_fn=collate_fn,
                                 config=config,
                                 config_params=config_params,
-                                training_data_params=training_data_params)
+                                training_data_params=training_data_params,
+                                requires_grad_special_cases=requires_grad_special_cases)
 
     return_items = [
         engine,
