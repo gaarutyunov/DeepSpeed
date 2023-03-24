@@ -767,7 +767,20 @@ class PipelineEngine(DeepSpeedEngine):
         if isinstance(outputs, tuple):
             out_tensors = [t for t in outputs if t.is_floating_point()]
             assert len(out_tensors) == len(grad_tensors)
-            torch.autograd.backward(tensors=out_tensors, grad_tensors=grad_tensors)
+            try:
+                torch.autograd.backward(tensors=out_tensors, grad_tensors=grad_tensors)
+            except Exception as e:
+                fmt = ""
+                fmt_grad = ""
+
+                for i, t in enumerate(out_tensors):
+                    fmt += f"out_tensors[{i}].grad_fn={t.grad_fn}'\n"
+                    fmt += f"out_tensors[{i}].grad={t.grad}'\n"
+                    fmt += f"out_tensors[{i}].requires_grad={t.requires_grad}'\n"
+                    fmt_grad += f"grad_tensors[{i}].grad_fn={grad_tensors[i].grad_fn}'\n"
+                    fmt_grad += f"grad_tensors[{i}].grad={grad_tensors[i].grad}'\n"
+                    fmt_grad += f"grad_tensors[{i}].requires_grad={grad_tensors[i].requires_grad}'\n"
+                raise Exception(fmt + fmt_grad) from e
         else:
             torch.autograd.backward(tensors=(outputs, ), grad_tensors=(grad_tensors, ))
 
