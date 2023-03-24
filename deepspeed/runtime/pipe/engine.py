@@ -16,6 +16,7 @@ from ..dataloader import RepeatingLoader
 from .module import PipelineModule, PipelineError
 from . import p2p
 from . import schedule
+from ...utils.comms_logging import convert_size
 
 TARGET_ID = -2
 LOG_STAGE = -2
@@ -993,6 +994,8 @@ class PipelineEngine(DeepSpeedEngine):
             p2p.send(outputs, self.next_stage)
         elif isinstance(outputs, tuple):
             for idx, buffer in enumerate(outputs):
+                msg_size = buffer.element_size() * buffer.nelement()
+                print(f"Sending buffer {idx}/{buffer} {convert_size(msg_size)}")
                 p2p.send(buffer, self.next_stage)
         else:
             raise NotImplementedError('Could not send output of type '
