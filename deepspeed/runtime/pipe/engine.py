@@ -995,7 +995,7 @@ class PipelineEngine(DeepSpeedEngine):
         elif isinstance(outputs, tuple):
             for idx, buffer in enumerate(outputs):
                 msg_size = buffer.element_size() * buffer.nelement()
-                print(f"Sending buffer {idx}/{buffer} {convert_size(msg_size)}")
+                print(f"Sending buffer {idx}/{len(outputs)} {convert_size(msg_size)}")
                 p2p.send(buffer, self.next_stage)
         else:
             raise NotImplementedError('Could not send output of type '
