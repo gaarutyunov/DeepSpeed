@@ -765,10 +765,15 @@ class PipelineEngine(DeepSpeedEngine):
 
         # This handles either a single tensor or tuple of tensors.
         if isinstance(outputs, tuple):
-            out_tensors = [t for t in outputs if t.is_floating_point()]
-            assert len(out_tensors) == len(grad_tensors)
+            out_tensors, grad_tensors_ = [], []
+            for t, g in zip(outputs, grad_tensors):
+                if not t.is_floating_point() or not t.requires_grad:
+                    continue
+                out_tensors.append(t)
+                grad_tensors_.append(g)
+            assert len(out_tensors) == len(grad_tensors_)
             try:
-                torch.autograd.backward(tensors=out_tensors, grad_tensors=grad_tensors)
+                torch.autograd.backward(tensors=out_tensors, grad_tensors=grad_tensors_)
             except Exception as e:
                 fmt = ""
                 fmt_grad = ""
