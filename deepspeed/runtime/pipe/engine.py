@@ -1396,6 +1396,7 @@ class PipelineEngine(DeepSpeedEngine):
 
     def _exec_schedule(self, pipe_schedule):
         # Reserve and reset buffers.
+        print(f"Executing schedule:\n{pipe_schedule}")
         self._reserve_pipe_buffers(pipe_schedule.num_pipe_buffers())
         self.fwd_outputs = []
 
@@ -1403,6 +1404,7 @@ class PipelineEngine(DeepSpeedEngine):
         for step_cmds in pipe_schedule:
             # For each instruction in the step
             for cmd in step_cmds:
+                print(f"Executing command {cmd}")
                 if type(cmd) not in self._INSTRUCTION_MAP:
                     raise RuntimeError(
                         f'{self.__class__.__name__} does not understand instruction {repr(cmd)}'
