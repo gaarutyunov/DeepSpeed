@@ -984,9 +984,7 @@ class PipelineEngine(DeepSpeedEngine):
             outputs[-1] = outputs[-1].half()
             outputs = tuple(outputs)
 
-        if self.first_output_send:
-            self.first_output_send = False
-            self._send_tensor_meta(outputs, self.next_stage)
+        self._send_tensor_meta(outputs, self.next_stage)
 
         if isinstance(outputs, torch.Tensor):
             p2p.send(outputs, self.next_stage)
@@ -1081,8 +1079,7 @@ class PipelineEngine(DeepSpeedEngine):
         recvd = None
 
         # Allocate the buffer if necessary
-        if self.pipe_recv_buf is None:
-            self.pipe_recv_buf = self._recv_tensor_meta(self.prev_stage)
+        self.pipe_recv_buf = self._recv_tensor_meta(self.prev_stage)
 
         if isinstance(self.pipe_recv_buf, torch.Tensor):
             p2p.recv(self.pipe_recv_buf, self.prev_stage)
