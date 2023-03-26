@@ -773,20 +773,7 @@ class PipelineEngine(DeepSpeedEngine):
                 out_tensors.append(t)
                 grad_tensors_.append(g)
             assert len(out_tensors) == len(grad_tensors_)
-            try:
-                torch.autograd.backward(tensors=out_tensors, grad_tensors=grad_tensors_)
-            except Exception as e:
-                fmt = ""
-                fmt_grad = ""
-
-                for i, t in enumerate(out_tensors):
-                    fmt += f"out_tensors[{i}].grad_fn={t.grad_fn}'\n"
-                    fmt += f"out_tensors[{i}].grad={t.grad}'\n"
-                    fmt += f"out_tensors[{i}].requires_grad={t.requires_grad}'\n"
-                    fmt_grad += f"grad_tensors[{i}].grad_fn={grad_tensors[i].grad_fn}'\n"
-                    fmt_grad += f"grad_tensors[{i}].grad={grad_tensors[i].grad}'\n"
-                    fmt_grad += f"grad_tensors[{i}].requires_grad={grad_tensors[i].requires_grad}'\n"
-                raise Exception(fmt + fmt_grad) from e
+            torch.autograd.backward(tensors=out_tensors, grad_tensors=grad_tensors_)
         else:
             torch.autograd.backward(tensors=(outputs, ), grad_tensors=(grad_tensors, ))
 
@@ -827,10 +814,7 @@ class PipelineEngine(DeepSpeedEngine):
                 for idx, x in enumerate(batch[0]):
                     assert torch.is_tensor(x)
                     mine = x.clone().detach().to(self.device)
-                    if self.requires_grad_special_cases is not None and str(idx) in self.requires_grad_special_cases:
-                        mine.requires_grad = mine.is_floating_point() and self.requires_grad_special_cases[str(idx)]
-                    else:
-                        mine.requires_grad = mine.is_floating_point()
+                    mine.requires_grad = mine.is_floating_point()
                     loaded.append(mine)
                 loaded = tuple(loaded)
 
@@ -900,7 +884,6 @@ class PipelineEngine(DeepSpeedEngine):
                 p2p.send(send_ndims, recv_stage)
                 p2p.send(send_shape, recv_stage)
                 # Useful for performance debugging.
-                '''
                 new_bytes = _tensor_bytes(tensor)
                 send_bytes += _tensor_bytes(tensor)
                 # Useful for performance debugging.
@@ -908,7 +891,6 @@ class PipelineEngine(DeepSpeedEngine):
                     print(
                         f'STAGE={self.stage_id} pipe-send-volume[{idx}]: shape={send_shape} {new_bytes/1024**2:0.2f}MB'
                     )
-                '''
         else:
             raise NotImplementedError(f'Could not send meta type {type(buffer)}')
 
@@ -991,9 +973,7 @@ class PipelineEngine(DeepSpeedEngine):
         elif isinstance(outputs, tuple):
             for idx, buffer in enumerate(outputs):
                 msg_size = buffer.element_size() * buffer.nelement()
-                print(f"Sending buffer {idx+1}/{len(outputs)} {convert_size(msg_size)}")
                 p2p.send(buffer, self.next_stage)
-                print(f"Sent buffer {idx+1}/{len(outputs)}")
         else:
             raise NotImplementedError('Could not send output of type '
                                       f'{type(outputs)}')
@@ -1057,13 +1037,7 @@ class PipelineEngine(DeepSpeedEngine):
                     if not buffer.is_floating_point():
                         assert buffer.grad is None
                         continue
-                    try:
-                        assert buffer.grad is not None, f"buffer {idx} has no gradient {buffer}\n for inputs:\n {inputs}"
-                    except Exception as e:
-                        fmt = "Buffers' gradients:\n"
-                        for idx_, buffer_ in enumerate(inputs):
-                            fmt += f"- {idx_}: {buffer_.grad is not None} (type: {buffer_.dtype})\n"
-                        raise Exception(fmt) from e
+                    assert buffer.grad is not None
                     p2p.send(buffer.grad, self.prev_stage)
 
         # We can free up the input buffer now
@@ -1097,9 +1071,7 @@ class PipelineEngine(DeepSpeedEngine):
                                                        dtype=torch.long,
                                                        device=self.device)
                     buffer = self.meta_buffer
-                print(f"Receiving buffer {idx+1}/{len(self.pipe_recv_buf)}")
                 p2p.recv(buffer, self.prev_stage)
-                print(f"Received buffer {idx+1}/{len(self.pipe_recv_buf)}")
                 recvd[idx] = buffer.clone().detach()
 
             # NCCL does not like to send torch.BoolTensor types, so un-cast the
@@ -1110,10 +1082,7 @@ class PipelineEngine(DeepSpeedEngine):
             recvd = tuple(recvd)
 
             for idx, buffer in enumerate(recvd):
-                if self.requires_grad_special_cases is not None and str(idx) in self.requires_grad_special_cases:
-                    buffer.requires_grad = buffer.is_floating_point() and self.requires_grad_special_cases[str(idx)]
-                else:
-                    buffer.requires_grad = buffer.is_floating_point()
+                buffer.requires_grad = buffer.is_floating_point()
 
         self.pipe_buffers['inputs'][buffer_id] = recvd
 
@@ -1293,6 +1262,7 @@ class PipelineEngine(DeepSpeedEngine):
         raise PipelineError("Only train_batch() is accessible in pipeline mode.")
 
     def mem_status(self, msg, print_rank=-1, reset_max=False):
+        return
         global mem_alloced, mem_cached
         if not self.global_steps == 0 or not self.global_steps == 9:
             #return
