@@ -883,20 +883,8 @@ class PipelineEngine(DeepSpeedEngine):
                 p2p.send(send_dtype, recv_stage)
                 p2p.send(send_ndims, recv_stage)
                 p2p.send(send_shape, recv_stage)
-                # Useful for performance debugging.
-                new_bytes = _tensor_bytes(tensor)
-                send_bytes += _tensor_bytes(tensor)
-                # Useful for performance debugging.
-                if self.grid.data_parallel_id == 0:
-                    print(
-                        f'STAGE={self.stage_id} pipe-send-volume[{idx}]: shape={send_shape} {new_bytes/1024**2:0.2f}MB'
-                    )
         else:
             raise NotImplementedError(f'Could not send meta type {type(buffer)}')
-
-        # Useful for performance debugging.
-        if self.grid.data_parallel_id == 0:
-            print(f'STAGE={self.stage_id} pipe-send-volume: {send_bytes/1024**2:0.2f}MB')
 
     def _recv_tensor_meta(self, send_stage):
         """Receive metadata about upcoming p2p transfers and return allocated buffers.
