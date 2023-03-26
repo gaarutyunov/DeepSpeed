@@ -1106,40 +1106,38 @@ class PipelineEngine(DeepSpeedEngine):
             # save for backward
             self.pipe_buffers['outputs'][buffer_id] = outputs
 
-        # Allocate gradient if necessary
-        if self.grad_layer is None:
-            if isinstance(outputs, torch.Tensor):
-                s = list(outputs.size())
-                self.grad_layer = self._allocate_buffer(s,
-                                                        dtype=outputs.dtype,
-                                                        num_buffers=1)[0]
+        if isinstance(outputs, torch.Tensor):
+            s = list(outputs.size())
+            self.grad_layer = self._allocate_buffer(s,
+                                                    dtype=outputs.dtype,
+                                                    num_buffers=1)[0]
+        else:
+            # XXX This is a HACK
+            # When we exchange activations/gradients, the two pipe stages
+            # need to issue the send/recv with the same buffer sizes or
+            # else there is a deadlock. The is_floating_point() filter is
+            # used to avoid sending gradients for tensors that do not
+            # produce gradients. When TP>1, we partition the first
+            # activations/gradients across TP ranks to save communication
+            # volume and memory. That partitioned tensor is represented as
+            # two tensors: a 1/TPth chunk of the original data and also a
+            # small LongTensor storing the metadata used to reconstruct on
+            # the other side. When combined, the floating point filter also
+            # filtered out the metadata tensor. This quick (hacky) fix just
+            # branches on is_grad_partitioned so we don't filter out the
+            # metadata tensor.
+            if self.is_grad_partitioned:
+                sizes_and_dtypes = [
+                    (list(t.size()),
+                     t.dtype) for t in outputs[:2]
+                ] + [(list(t.size()),
+                      t.dtype) for t in outputs[2:] if t.is_floating_point()]
             else:
-                # XXX This is a HACK
-                # When we exchange activations/gradients, the two pipe stages
-                # need to issue the send/recv with the same buffer sizes or
-                # else there is a deadlock. The is_floating_point() filter is
-                # used to avoid sending gradients for tensors that do not
-                # produce gradients. When TP>1, we partition the first
-                # activations/gradients across TP ranks to save communication
-                # volume and memory. That partitioned tensor is represented as
-                # two tensors: a 1/TPth chunk of the original data and also a
-                # small LongTensor storing the metadata used to reconstruct on
-                # the other side. When combined, the floating point filter also
-                # filtered out the metadata tensor. This quick (hacky) fix just
-                # branches on is_grad_partitioned so we don't filter out the
-                # metadata tensor.
-                if self.is_grad_partitioned:
-                    sizes_and_dtypes = [
-                        (list(t.size()),
-                         t.dtype) for t in outputs[:2]
-                    ] + [(list(t.size()),
-                          t.dtype) for t in outputs[2:] if t.is_floating_point()]
-                else:
-                    sizes_and_dtypes = [(list(t.size()),
-                                         t.dtype) for t in outputs
-                                        if t.is_floating_point()]
-                self.grad_layer = self._allocate_buffers(sizes_and_dtypes,
-                                                         num_buffers=1)[0]
+                sizes_and_dtypes = [(list(t.size()),
+                                     t.dtype) for t in outputs
+                                    if t.is_floating_point()]
+            self.grad_layer = self._allocate_buffers(sizes_and_dtypes,
+                                                     num_buffers=1)[0]
 
         if isinstance(self.grad_layer, torch.Tensor):
             p2p.recv(self.grad_layer, self.next_stage)
