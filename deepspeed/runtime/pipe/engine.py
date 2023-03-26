@@ -913,10 +913,8 @@ class PipelineEngine(DeepSpeedEngine):
             raise NotImplementedError(f'Could not send meta type {type(buffer)}')
 
         # Useful for performance debugging.
-        '''
         if self.grid.data_parallel_id == 0:
             print(f'STAGE={self.stage_id} pipe-send-volume: {send_bytes/1024**2:0.2f}MB')
-        '''
 
     def _recv_tensor_meta(self, send_stage):
         """Receive metadata about upcoming p2p transfers and return allocated buffers.
@@ -995,8 +993,9 @@ class PipelineEngine(DeepSpeedEngine):
         elif isinstance(outputs, tuple):
             for idx, buffer in enumerate(outputs):
                 msg_size = buffer.element_size() * buffer.nelement()
-                print(f"Sending buffer {idx}/{len(outputs)} {convert_size(msg_size)}")
+                print(f"Sending buffer {idx+1}/{len(outputs)} {convert_size(msg_size)}")
                 p2p.send(buffer, self.next_stage)
+                print(f"Sent buffer {idx+1}/{len(outputs)}")
         else:
             raise NotImplementedError('Could not send output of type '
                                       f'{type(outputs)}')
@@ -1101,8 +1100,9 @@ class PipelineEngine(DeepSpeedEngine):
                                                        dtype=torch.long,
                                                        device=self.device)
                     buffer = self.meta_buffer
-
+                print(f"Receiving buffer {idx+1}/{len(self.pipe_recv_buf)}")
                 p2p.recv(buffer, self.prev_stage)
+                print(f"Received buffer {idx+1}/{len(self.pipe_recv_buf)}")
                 recvd[idx] = buffer.clone().detach()
 
             # NCCL does not like to send torch.BoolTensor types, so un-cast the
@@ -1296,7 +1296,6 @@ class PipelineEngine(DeepSpeedEngine):
         raise PipelineError("Only train_batch() is accessible in pipeline mode.")
 
     def mem_status(self, msg, print_rank=-1, reset_max=False):
-        return
         global mem_alloced, mem_cached
         if not self.global_steps == 0 or not self.global_steps == 9:
             #return
